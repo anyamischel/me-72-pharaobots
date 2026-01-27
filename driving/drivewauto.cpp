@@ -50,6 +50,24 @@ bool readSwitch(byte channelInput, bool defaultValue) {
   return (ch > 50);
 }
 
+enum MotorChan : uint8_t { M1 = 1, M2 = 2 };
+
+void driveMotorCmd(RoboClaw &rc, uint8_t chan, int cmd) { // cmd ∈ [-127,127] driveMotorCmd(roboclaw1, M1, rightCmd)
+  cmd = constrain(cmd, -127, 127);
+  uint8_t sp = (uint8_t)abs(cmd); // sp stands for speed
+  if (chan == M1) {
+    if (cmd >= 0) rc.ForwardM1( ROBOCLAW_ADDRESS, sp); // the purpose for this entire section is that roboclaw can only read absolute values and only distinguishes
+    else          rc.BackwardM1(ROBOCLAW_ADDRESS, sp); // forward and backward through direct methods (rc.ForwardM1)
+  } else { // M2
+    if (cmd >= 0) rc.ForwardM2(ROBOCLAW_ADDRESS, sp);
+    else          rc.BackwardM2(ROBOCLAW_ADDRESS, sp);
+  }
+}
+
+enum Mode : uint8_t { MODE_MANUAL, MODE_AUTO};
+
+Mode mode = MODE_MANUAL;
+
 enum AutoState : uint8_t { AUTO_IDLE, AUTO_STAGE1, AUTO_DONE };
 AutoState autoState = AUTO_IDLE;
 
@@ -76,6 +94,7 @@ bool autoUpdate() {
         driveMotorCmd(roboclaw2, M2, cmd);
       } else {
         autoState = AUTO_DONE;
+        return true;
       }
       break;
     case AUTO_DONE:
@@ -93,21 +112,6 @@ bool autoUpdate() {
   return false;
 }
 
-
-
-enum MotorChan : uint8_t { M1 = 1, M2 = 2 };
-
-void driveMotorCmd(RoboClaw &rc, uint8_t chan, int cmd) { // cmd ∈ [-127,127] driveMotorCmd(roboclaw1, M1, rightCmd)
-  cmd = constrain(cmd, -127, 127);
-  uint8_t sp = (uint8_t)abs(cmd); // sp stands for speed
-  if (chan == M1) {
-    if (cmd >= 0) rc.ForwardM1( ROBOCLAW_ADDRESS, sp); // the purpose for this entire section is that roboclaw can only read absolute values and only distinguishes
-    else          rc.BackwardM1(ROBOCLAW_ADDRESS, sp); // forward and backward through direct methods (rc.ForwardM1)
-  } else { // M2
-    if (cmd >= 0) rc.ForwardM2(ROBOCLAW_ADDRESS, sp);
-    else          rc.BackwardM2(ROBOCLAW_ADDRESS, sp);
-  }
-}
 
 //////////// our set up simply opens up communications between the arduino & receiver and the arduino & roboclaw
 //////////// each one will need to use the objects of their specific classes based on the imported libraries
