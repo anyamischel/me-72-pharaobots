@@ -189,21 +189,26 @@ void loop() {
 
 
   // If signal is lost -> intake OFF
+  static int lostCount = 0;
   if (switchPulse == 0) {
-    trexCmd.writeMicroseconds(INTAKE_STOP_US);
-    delay(20);
-    return;
-  }
-
-
-  // Switch
-  if (switchPulse < 1200) {
-    trexCmd.writeMicroseconds(INTAKE_STOP_US);  // If the switch is off don't run motor
-  } else if (switchPulse < 1600){
-    trexCmd.writeMicroseconds(INTAKE_SPEED1_US); // If the switch is at the first stage than run the motor at the first desired speed
+  lostCount++;
+    if (lostCount >= 3) {                 // only stop after 3 misses
+        trexCmd.writeMicroseconds(INTAKE_STOP_US);
+    }
   } else {
-    trexCmd.writeMicroseconds(INTAKE_SPEED2_US); // If the switch is at the second stage than run the motor ar the second desired speed
-  }
+    lostCount = 0;
+    if (switchPulse < 1200) {
+        trexCmd.writeMicroseconds(INTAKE_STOP_US);  // If the switch is off don't run motor
+    } else if (switchPulse < 1600){
+        trexCmd.writeMicroseconds(INTAKE_SPEED1_US); // If the switch is at the first stage than run the motor at the first desired speed
+    } else {
+        trexCmd.writeMicroseconds(INTAKE_SPEED2_US); // If the switch is at the second stage than run the motor ar the second desired speed
+    }
+  
+    }   
+
+
+  
 
 
   delay(20);
