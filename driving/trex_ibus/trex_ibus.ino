@@ -24,7 +24,6 @@ int rcCH3 = 0;   // Acceleration
 
 
 //// Channel Values for intake
-// const int rcPin = 8;     // Receiver channel UNNECESSARY?
 const int trexPin = 5;     // Arduino pin that outputs the servo pulse to TReX
 Servo trexCmd;
 
@@ -104,8 +103,6 @@ void setup() {
   driveMotorCmd(roboclaw2, M2, stopCmd);
  
 ///////////// Intake Motor Set Up
- 
-  // pinMode(rcPin, INPUT); UNNECESSARY?
 
  // ---- TReX setup ----
   trexCmd.attach(trexPin);
@@ -191,7 +188,6 @@ void loop() {
 
 ///// Input Motor Control
 
-  // unsigned long switchPulse = pulseIn(rcPin, HIGH, 25000); UNNECESSARY?
   rcCH9 = readChannel(8, -100, 100, 0);
   int intsp = map(rcCH9, -100, 100, 1000, 2000);
 
@@ -208,25 +204,7 @@ void loop() {
 
   Serial.print(" CH8 raw=");
   Serial.println(ibus.readChannel(8));
-  // If signal is lost -> intake OFF
-
-  // static int lostCount = 0;
-  // if (switchPulse == 0) {
-  // lostCount++;
-  //   if (lostCount >= 3) {                 // only stop after 3 misses
-  //       trexCmd.writeMicroseconds(INTAKE_STOP_US);
-  //   }
-  // }
-  //   lostCount = 0;
-  //   if (switchPulse < 1200) {
-  //       trexCmd.writeMicroseconds(INTAKE_STOP_US);  // If the switch is off don't run motor
-  //   } else if (switchPulse < 1600){
-  //       trexCmd.writeMicroseconds(INTAKE_SPEED1_US); // If the switch is at the first stage than run the motor at the first desired speed
-  //   } else {
-  //       trexCmd.writeMicroseconds(INTAKE_SPEED2_US); // If the switch is at the second stage than run the motor ar the second desired speed
-  //   }
-  
-  //   }   
+ 
 
 
   
