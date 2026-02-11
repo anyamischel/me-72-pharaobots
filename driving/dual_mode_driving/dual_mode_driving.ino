@@ -23,7 +23,7 @@ int rcCH1 = 0;   // Left - Right
 int rcCH2 = 0;   // Forward - Reverse
 int rcCH3 = 0;   // Acceleration
 
-int rcCH8 = 0;   // Switch for driving mode
+bool rcCH8 = 0;   // Switch between drive and climb mode
 
 
 
@@ -181,7 +181,8 @@ void loop() {
   rcCH1 = readChannel(0, -100, 100, 0);
   rcCH2 = readChannel(1, -100, 100, 0);
   rcCH3 = readChannel(2, 0,   100, 0);   // acceleration base (0..100)
-  rcCH8 = readSwitch(7, 0, 100, 0);
+  rcCH8 = readSwitch(7, false);
+
 
 
 
@@ -199,7 +200,8 @@ void loop() {
 
 
   // Throttle limit from CH3: 0..100 -> 0..127
-  
+  if (!rcCH8) {
+
   int maxMag = map(rcCH3, 0, 100, 0, 127);
  
   // Forward/back command from CH2: signed in [-maxMag, +maxMag]
@@ -236,6 +238,54 @@ void loop() {
   // RoboClaw2 = both LEFT motors
   driveMotorCmd(roboclaw2, M1, leftCmd);
   driveMotorCmd(roboclaw2, M2, leftCmd);
+////////////////////////////////////////////////// Two driving modes
+
+  } else {
+    /// CH3: forward cruise speed
+  int speedMag = map(rcCH3, 0, 100, 0, 127);
+ 
+  // CH2 speed adjustments
+  int adj = map(abs(rcCH2), 0, 100, 0, 127);
+  if (rcCH2 < 0) adj = -adj;
+
+  int fwd = -(adj + speedMag);
+  fwd = constrain(fwd, -127, 127);
+
+
+ 
+  // Steering command from CH1: signed in [-maxMag, +maxMag]
+  // (If steering is too strong, use a smaller range like -40..40 mapped to maxMag)
+  const float TURN_GAIN = 0.6;
+  int turnMax = (int)(TURN_GAIN * 127);
+  int turn = map(rcCH1, -100, 100, -turnMax, turnMax);
+ 
+  // Differential mix for driving backwards
+  int leftCmd  = fwd - turn;
+  int rightCmd = fwd + turn;
+ 
+  // Clamp to RoboClaw command range
+  leftCmd  = constrain(leftCmd,  -127, 127);
+  rightCmd = constrain(rightCmd, -127, 127);
+ 
+  // Deadband to avoid creep
+  if (abs(leftCmd)  < 3) leftCmd  = 0;
+  if (abs(rightCmd) < 3) rightCmd = 0;
+ 
+  // OPTIONAL: per-side inversion flags (very common with mirrored drivetrains)
+  const bool INVERT_LEFT  = false;
+  const bool INVERT_RIGHT = false;
+  if (INVERT_LEFT)  leftCmd  = -leftCmd;
+  if (INVERT_RIGHT) rightCmd = -rightCmd;
+ 
+  // APPLY TO YOUR WIRING:
+  // RoboClaw1 = both RIGHT motors
+  driveMotorCmd(roboclaw1, M1, rightCmd);
+  driveMotorCmd(roboclaw1, M2, rightCmd);
+ 
+  // RoboClaw2 = both LEFT motors
+  driveMotorCmd(roboclaw2, M1, leftCmd);
+  driveMotorCmd(roboclaw2, M2, leftCmd);
+  }
  
 
 
