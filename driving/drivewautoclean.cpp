@@ -1,12 +1,11 @@
 // This code bridges the gap between autonomous and manual. Channel 5 is used to switch between the two modes.
-// as of 1/27/26 It’s not fully doing what i thought the code was going to do. But it successfully switches between auto and manual so it technically works.
-//My only concern is that even thought I am making the auto auto-quit, it is not exiting to manual on its own. It always has to be the switch
+// as of 2/16/26 Same as drivewauto2.cpp however I just tried to clean up some if statements, but honestly i didn't clean it up that much
 
 
 // Include necessary libraries
 #include <IBusBM.h>
 #include "RoboClaw.h"
-
+#include <Servo.h>
 
 
 // Create necessary global objects
@@ -25,14 +24,17 @@ int rcCH1 = 0;   // Left - Right
 int rcCH2 = 0;   // Forward - Reverse
 int rcCH3 = 0;   // Acceleration
 int rcCH4 = 0; // autonomous in/out switch
+bool rcCH8 = 0;   // Switch between drive and climb mode
+int rcCH9 = 0; // Intake switch
 
-//// Channel Values for intake
-const int rcPin = 8;     // Receiver channel
-const int enA = 5;      // L298N ENA (PWM)
-const int in1 = 6;      // L298N IN1 (PWM)
-const int in2 = 7;      // L298N IN2 (PWM)
-const int INTAKE_SPEED1 = 64; // Speed we want for second switch position
-const int INTAKE_SPEED2 = 128; // Speed we want for third switch position
+const int trexPin = 5;     // Arduino pin that outputs the servo pulse to TReX
+Servo trexCmd;
+
+// Intake speed
+const int INTAKE_STOP_US   = 1500;  // neutral/stop in RC-style systems
+const int INTAKE_SPEED1_US = 1600;  // mild forward
+const int INTAKE_SPEED2_US = 1700;  // faster forward
+
 ////
 // For autonomous
 const byte AUTO_SWITCH_CH = 4;
@@ -96,6 +98,7 @@ bool autoUpdate() {
   // Hard timeout safety
   if (millis() - autoStartMs > AUTO_TIMEOUT_MS) { //if auto exceeds 40 seconds it exits
     autoState = AUTO_DONE;
+    Serial.println("autonomous timed out, please re-set switch 5 on controller.");
   }
 
 
@@ -171,28 +174,9 @@ void setup() {
  
     ///////////// Intake Motor Set Up
  
-  pinMode(rcPin, INPUT);
-
-
-  pinMode(enA, OUTPUT);
-  pinMode(in1, OUTPUT);
-  pinMode(in2, OUTPUT);
-
-
-
-
-  // Set motor direction once (forward)
-  digitalWrite(in1, HIGH);
-  digitalWrite(in2, LOW);
-
-
-
-
-  // Motor OFF at startup
-  analogWrite(enA, 0);
-
-
-  Serial.println("Ready: iBus on Serial2 (RX2=17), RoboClaw on Serial1 and Serial3.");
+   // ---- TReX setup ----
+  trexCmd.attach(trexPin);
+  trexCmd.writeMicroseconds(INTAKE_STOP_US); // stop at startup
 }
 
 
@@ -201,8 +185,10 @@ void manualUpdate() {
   rcCH1 = readChannel(0, -100, 100, 0);
   rcCH2 = readChannel(1, -100, 100, 0);
   rcCH3 = readChannel(2, 0,   100, 0);   // acceleration base (0..100)
+  rcCH8 = readSwitch(7, false);
 
 
+  if (!rcCH8) {
   // Throttle limit from CH3: 0..100 -> 0..127
   int maxMag = map(rcCH3, 0, 100, 0, 127);
  
@@ -240,31 +226,63 @@ void manualUpdate() {
   // RoboClaw2 = both LEFT motors
   driveMotorCmd(roboclaw2, M1, leftCmd);
   driveMotorCmd(roboclaw2, M2, leftCmd);
+  } else {
+    /// CH3: forward cruise speed
+  int speedMag = map(rcCH3, 0, 100, 0, 127);
+ 
+  // CH2 speed adjustments
+  int adj = map(abs(rcCH2), 0, 100, 0, 127);
+  if (rcCH2 < 0) adj = -adj;
+
+  int fwd = -(adj + speedMag);
+  fwd = constrain(fwd, -127, 127);
+
+
+ 
+  // Steering command from CH1: signed in [-maxMag, +maxMag]
+  // (If steering is too strong, use a smaller range like -40..40 mapped to maxMag)
+  const float TURN_GAIN = 0.6;
+  int turnMax = (int)(TURN_GAIN * 127);
+  int turn = map(rcCH1, -100, 100, -turnMax, turnMax);
+ 
+  // Differential mix for driving backwards
+  int leftCmd  = fwd - turn;
+  int rightCmd = fwd + turn;
+ 
+  // Clamp to RoboClaw command range
+  leftCmd  = constrain(leftCmd,  -127, 127);
+  rightCmd = constrain(rightCmd, -127, 127);
+ 
+  // Deadband to avoid creep
+  if (abs(leftCmd)  < 3) leftCmd  = 0;
+  if (abs(rightCmd) < 3) rightCmd = 0;
+ 
+  // OPTIONAL: per-side inversion flags (very common with mirrored drivetrains)
+  const bool INVERT_LEFT  = false;
+  const bool INVERT_RIGHT = false;
+  if (INVERT_LEFT)  leftCmd  = -leftCmd;
+  if (INVERT_RIGHT) rightCmd = -rightCmd;
+ 
+  // APPLY TO YOUR WIRING:
+  // RoboClaw1 = both RIGHT motors
+  driveMotorCmd(roboclaw1, M1, rightCmd);
+  driveMotorCmd(roboclaw1, M2, rightCmd);
+ 
+  // RoboClaw2 = both LEFT motors
+  driveMotorCmd(roboclaw2, M1, leftCmd);
+  driveMotorCmd(roboclaw2, M2, leftCmd);
+  }
+  
 
 
   // Input Motor Control
-  unsigned long switchPulse = pulseIn(rcPin, HIGH, 25000);
-
-
-
-
-  // If signal is lost → motor OFF
-  if (switchPulse == 0) {
-    analogWrite(enA, 0);
-    return;
-  }
-
-
-
-
-  // Switch
-  if (switchPulse < 1200) {
-    analogWrite(enA, 0);  // If the switch is off don't run motor
-  } else if (switchPulse < 1600){
-    analogWrite(enA, INTAKE_SPEED1); // If the switch is at the first stage than run the motor at the first desired speed
-  } else {
-    analogWrite(enA, INTAKE_SPEED2); // If the switch is at the second stage than run the motor ar the second desired speed
-  }
+  rcCH9 = readChannel(8, -100, 100, 0);
+  int intsp = map(rcCH9, -100, 100, 1000, 2000);
+    // Clamp to TRex range?
+  intsp  = constrain(intsp,  1000, 2000);
+  // deadpand?
+  if (abs(intsp - INTAKE_STOP_US)  < 40) intsp = INTAKE_STOP_US;
+  trexCmd.writeMicroseconds(intsp);
 
 
 }
@@ -280,19 +298,14 @@ void loop() {
     driveMotorCmd(roboclaw1, M2, stopCmd);
     driveMotorCmd(roboclaw2, M1, stopCmd);
     driveMotorCmd(roboclaw2, M2, stopCmd);
+    trexCmd.writeMicroseconds(INTAKE_STOP_US);
  
     return;
   }
 
 
-  // Print for debugging
-  static unsigned long lastPrint = 0;
-  if (millis() - lastPrint > 200) {
-    lastPrint = millis();
-    Serial.print("Ch1="); Serial.print(rcCH1);
-    Serial.print(" Ch2="); Serial.print(rcCH2);
-    Serial.print(" Ch3="); Serial.print(rcCH3);
-  }
+  
+  
   bool autoSwitch = readSwitch(AUTO_SWITCH_CH, AUTO_SWITCH_DEFAULT);
 
 
@@ -300,21 +313,20 @@ void loop() {
   if (mode == MODE_MANUAL && autoSwitch) {
     mode = MODE_AUTO;
     autoEnter();
-  } else if (mode == MODE_AUTO && !autoSwitch) {
+  } 
+  else if (mode == MODE_AUTO && !autoSwitch) {
     // manual override
     mode = MODE_MANUAL;
     manualUpdate();
-    Serial.println("i am here");
   }
 
 
-  if (mode == MODE_MANUAL) {
+  else if (mode == MODE_MANUAL) {
     manualUpdate();
   } else {
 
 
-    bool done = autoUpdate(); //autoUpdate returns True once it's done
-    if (done) {
+    if (autoUpdate();) {
       mode = MODE_MANUAL; // fall back after completion
       manualUpdate();
       Serial.println("i am here and going back to manual.");
