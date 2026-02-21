@@ -1,12 +1,18 @@
+//this is the fist file for the autonomous version that worked but it is messy
 // This code bridges the gap between autonomous and manual. Channel 5 is used to switch between the two modes.
-// as of 2/16/26 Same as drivewauto2.cpp however I just tried to clean up some if statements, but honestly i didn't clean it up that much
-// I will try to incorportate the IR sensors
+// as of 2/16/26 Autonomous will only activate is switch is on. I still have not tested.
+
+
+
 
 // Include necessary libraries
 #include <IBusBM.h>
 #include "RoboClaw.h"
 #include <Servo.h>
-#include <Irsensors.cpp>
+
+
+
+
 
 
 // Create necessary global objects
@@ -17,7 +23,13 @@ RoboClaw roboclaw2(&Serial3, 10000); // the 10000 refers to microseconds to wait
 
 
 
+
+
+
+
 #define ROBOCLAW_ADDRESS 0x80 // defines some text as values that may or may not be needed but; helps with clarity
+
+
 
 
 // Channel Values for driving
@@ -28,13 +40,16 @@ int rcCH4 = 0; // autonomous in/out switch
 bool rcCH8 = 0;   // Switch between drive and climb mode
 int rcCH9 = 0; // Intake switch
 
+
 const int trexPin = 5;     // Arduino pin that outputs the servo pulse to TReX
 Servo trexCmd;
+
 
 // Intake speed
 const int INTAKE_STOP_US   = 1500;  // neutral/stop in RC-style systems
 const int INTAKE_SPEED1_US = 1600;  // mild forward
 const int INTAKE_SPEED2_US = 1700;  // faster forward
+
 
 ////
 // For autonomous
@@ -43,11 +58,14 @@ const bool AUTO_SWITCH_DEFAULT = false; // will always stay false
 unsigned long autoStartMs = 0;
 const unsigned long AUTO_TIMEOUT_MS = 60000; //40 seconds
 
-struct Sensors {
-    int L;
-    int C;
-    int R;
-};
+
+//sensros
+extern int L;
+extern int C;
+extern int R;
+
+
+
 
 
 
@@ -61,6 +79,10 @@ int readChannel(byte channelInput, int minLimit, int maxLimit, int defaultValue)
 
 
 
+
+
+
+
 bool readSwitch(byte channelInput, bool defaultValue) {
   int intDefaultValue = defaultValue ? 100 : 0;
   int ch = readChannel(channelInput, 0, 100, intDefaultValue);
@@ -68,7 +90,11 @@ bool readSwitch(byte channelInput, bool defaultValue) {
 }
 
 
+
+
 enum MotorChan : uint8_t { M1 = 1, M2 = 2 };
+
+
 
 
 void driveMotorCmd(RoboClaw &rc, uint8_t chan, int cmd) { // cmd ∈ [-127,127] driveMotorCmd(roboclaw1, M1, rightCmd)
@@ -84,27 +110,30 @@ void driveMotorCmd(RoboClaw &rc, uint8_t chan, int cmd) { // cmd ∈ [-127,127] 
 }
 
 
+
+
 enum Mode : uint8_t { MODE_MANUAL, MODE_AUTO};
+
+
 
 
 Mode mode = MODE_MANUAL;
 
 
+
+
 enum AutoState : uint8_t { AUTO_IDLE, AUTO_STAGE1, AUTO_DONE };
 AutoState autoState = AUTO_IDLE;
 
-Sensors readSensors() {
-    Sensors s;
-    s.L = digitalRead(sensorL);
-    s.C = digitalRead(sensorC);
-    s.R = digitalRead(sensorR);
-    return s;
-}
+
+
 
 void autoEnter() {
   autoStartMs = millis();
   autoState = AUTO_STAGE1;
 }
+
+
 
 
 bool autoUpdate() {
@@ -115,6 +144,8 @@ bool autoUpdate() {
   }
 
 
+
+
   switch (autoState) {
     case AUTO_STAGE1:
       // Example: drive forward for 2 seconds
@@ -122,14 +153,16 @@ bool autoUpdate() {
         // forward command example
         int cmd = 60;
         Serial.println("driving forward on auto");
-
-        if ((L ==0 && C==0 && R==0)) {
-            driveMotorCmd(roboclaw1, M1, cmd);
-            driveMotorCmd(roboclaw1, M2, cmd);
+        if (L==0 && C==0 && R==0) { //all white
+          driveMotorCmd(roboclaw1, M1, cmd);
+          driveMotorCmd(roboclaw1, M2, cmd);
         }
-        else 
-        driveMotorCmd(roboclaw2, M1, cmd);
-        driveMotorCmd(roboclaw2, M2, cmd);
+        else{
+          driveMotorCmd(roboclaw2, M1, cmd);
+          driveMotorCmd(roboclaw2, M2, cmd);
+        }
+       
+       
       } else {
         autoState = AUTO_DONE;
         return true;
@@ -144,13 +177,21 @@ bool autoUpdate() {
       return true;
 
 
+
+
     default:
       return true;
   }
 
 
+
+
   return false;
 }
+
+
+
+
 
 
 
@@ -160,16 +201,26 @@ bool autoUpdate() {
 //////////// the code also includes some led checks (likely not necessary) and then ensures that on start up all the motors are stopped
 
 
+
+
 const int stopCmd = 0;
+
+
 
 
 void setup() {
   Serial.begin(115200);
 
 
+
+
   // iBus is on pin 17 (RX2) => Serial2
   Serial2.begin(115200);
   ibus.begin(Serial2);
+
+
+
+
 
 
 
@@ -180,6 +231,9 @@ void setup() {
  
   Serial3.begin(38400);
   roboclaw2.begin(38400);
+  initIRSensors();
+
+
 
 
   // Stop motors
@@ -197,12 +251,16 @@ void setup() {
 }
 
 
+
+
 void manualUpdate() {
  // Read RC channels (same indices as your example)
   rcCH1 = readChannel(0, -100, 100, 0);
   rcCH2 = readChannel(1, -100, 100, 0);
   rcCH3 = readChannel(2, 0,   100, 0);   // acceleration base (0..100)
   rcCH8 = readSwitch(7, false);
+
+
 
 
   if (!rcCH8) {
@@ -251,8 +309,11 @@ void manualUpdate() {
   int adj = map(abs(rcCH2), 0, 100, 0, 127);
   if (rcCH2 < 0) adj = -adj;
 
+
   int fwd = -(adj + speedMag);
   fwd = constrain(fwd, -127, 127);
+
+
 
 
  
@@ -289,7 +350,9 @@ void manualUpdate() {
   driveMotorCmd(roboclaw2, M1, leftCmd);
   driveMotorCmd(roboclaw2, M2, leftCmd);
   }
-  
+ 
+
+
 
 
   // Input Motor Control
@@ -302,13 +365,20 @@ void manualUpdate() {
   trexCmd.writeMicroseconds(intsp);
 
 
+
+
 }
+
+
+
+
 
 
 
 
 void loop() {
   ibus.loop(); // mandatory, reads byte arriving on serial2
+  updateIRSensors();
   bool ibusOK = (ibus.readChannel(0) >= 100);  // crude but effective "frame present" check
   if (!ibusOK) {
     driveMotorCmd(roboclaw1, M1, stopCmd);
@@ -321,38 +391,46 @@ void loop() {
   }
 
 
-  
-  
+ 
+ 
+ 
   bool autoSwitch = readSwitch(AUTO_SWITCH_CH, AUTO_SWITCH_DEFAULT);
+
+
 
 
     // Mode transitions
   if (mode == MODE_MANUAL && autoSwitch) {
     mode = MODE_AUTO;
     autoEnter();
-  } 
-  else if (mode == MODE_AUTO && !autoSwitch) {
+  } else if (mode == MODE_AUTO && !autoSwitch) {
     // manual override
     mode = MODE_MANUAL;
     manualUpdate();
   }
 
 
-  else if (mode == MODE_MANUAL) {
+
+
+  if (mode == MODE_MANUAL) {
     manualUpdate();
   } else {
 
 
-    if (autoUpdate();) {
+
+
+    if (autoUpdate()) {
       mode = MODE_MANUAL; // fall back after completion
       manualUpdate();
       Serial.println("i am here and going back to manual.");
     }
 
 
+
+
     // Decide intake behavior during auto:
     // either keep it off or run with some autonomous logic.
-    analogWrite(enA, 0);
+    // analogWrite(enA, 0);
   }
   delay(20);
 }
