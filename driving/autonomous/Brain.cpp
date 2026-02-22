@@ -26,22 +26,11 @@ static bool autoUpdate() {
   switch (autoState) {
     case AUTO_STAGE1: {
       // Example: drive forward for 2 seconds
-      if (millis() - autoStartMs < 2000) {
-        // Example placeholder logic. Replace with your real autonomous.
-        // If sensors are "all white" (0,0,0), go straight; else maybe slow/turn, etc.
-        const int cmd = 60;
-
-        if (IR_L == 0 && IR_C == 0 && IR_R == 0) {
-          Drive_setLeftRight(cmd, cmd);
-        } else {
-          // Minimal example: stop if line detected
-          Drive_setLeftRight(0, 0);
-        }
-      } else {
-        autoState = AUTO_DONE;
-        return true;
-      }
-      break;
+      TurnLevels_runTest();     // blocks; okay because it's explicitly a test state
+      Drive_stopAll();
+      autoState = AUTO_DONE;
+      Serial.println("TurnLevels test complete.");
+      return true;
     }
 
     case AUTO_DONE:
@@ -85,7 +74,7 @@ void Brain_update() {
   } else {
     if (autoUpdate()) {
       mode = MODE_MANUAL; // fall back after completion
-      Serial.println("AUTO complete -> returning to MANUAL.");
+      Serial.println("AUTO complete -> returning to MANUAL."); //maybe I shouldn't do this
     }
   }
 }
