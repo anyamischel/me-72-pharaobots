@@ -16,4 +16,4 @@ enum class TurnLevel : uint8_t {
 };
 
 // Apply a preset using Drive_setLeftRight. speed is 0..127.
-void TurnLevels_apply(TurnLevel lvl, int speed);
+void TurnLevels_apply(TurnLevel lvl);

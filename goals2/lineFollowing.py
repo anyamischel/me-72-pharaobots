@@ -8,14 +8,14 @@ from enum import Enum
 from constants import *
 
 ReadingMove = {
-    (0, 0, 0): TurnLevel.SPIN_RIGHT,
-    (1, 0, 0): TurnLevel.TURN_LEFT,
-    (1, 1, 0): TurnLevel.STEER_LEFT,
-    (1, 1, 1): TurnLevel.STRAIGHT,
-    (0, 1, 1): TurnLevel.STEER_RIGHT,
-    (0, 0, 1): TurnLevel.TURN_RIGHT,
-    (1, 0, 1): TurnLevel.STRAIGHT,
-    (0, 1, 0): TurnLevel.STRAIGHT,
+    (0, 0, 0): TurnLevel.SPIN_RIGHT, #turn right
+    (1, 0, 0): TurnLevel.TURN_LEFT, #turn right 
+    (1, 1, 0): TurnLevel.STEER_LEFT, # veer right
+    (1, 1, 1): TurnLevel.STRAIGHT, #spin
+    (0, 1, 1): TurnLevel.STEER_RIGHT, # veer left
+    (0, 0, 1): TurnLevel.TURN_RIGHT, #turn left
+    (1, 0, 1): TurnLevel.STRAIGHT, #straight
+    (0, 1, 0): TurnLevel.STRAIGHT, #
 }
 
 

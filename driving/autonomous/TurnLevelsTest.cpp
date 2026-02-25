@@ -1,3 +1,4 @@
+#include "TurnLevelsTest.h"
 #include "TurnLevels.h"
 #include "Drive.h"
 #include <Arduino.h>
@@ -18,13 +19,14 @@ void TurnLevels_runTest() {
     TurnLevel::SPIN_LEFT
   };
 
-  const int speed = 90;       // start conservative
+//   const int speed = 90;       // start conservative
   const int holdMs = 1500;    // how long each motion runs
-  const int pauseMs = 800;    // stop between motions
+  const int pauseMs = 4000;    // stop between motions
 
   for (auto lvl : levels) {
-    TurnLevels_apply(lvl, speed);
+    TurnLevels_apply(lvl);
     delay(holdMs);
+    Serial.println("Switching states");
     Drive_stopAll();
     delay(pauseMs);
   }

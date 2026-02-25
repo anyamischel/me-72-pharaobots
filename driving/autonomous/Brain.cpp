@@ -2,6 +2,8 @@
 #include "Config.h"
 #include "Drive.h"
 #include "IRSensors.h"
+#include "TurnLevelsTest.h"
+#include "TurnLevels.h"
 
 enum Mode : uint8_t { MODE_MANUAL, MODE_AUTO };
 static Mode mode = MODE_MANUAL;
@@ -14,6 +16,25 @@ static unsigned long autoStartMs = 0;
 static void autoEnter() {
   autoStartMs = millis();
   autoState = AUTO_STAGE1;
+  Serial.println("Beginning linefollow");
+}
+
+// ---- Python ReadingMove dict -> C++ mapping ----
+static TurnLevel readingToMove(uint8_t L, uint8_t C, uint8_t R) {
+  // Convert tuple (L,C,R) to bits: LCR
+  uint8_t bits = ((L & 1) << 2) | ((C & 1) << 1) | (R & 1);
+
+  switch (bits) {
+    case 0b000: return TurnLevel::TURN_RIGHT;  // (0,0,0)
+    case 0b100: return TurnLevel::TURN_RIGHT;   // (1,0,0)
+    case 0b110: return TurnLevel::VEER_RIGHT;  // (1,1,0)
+    case 0b111: return TurnLevel::SPIN_RIGHT;    // (1,1,1)
+    case 0b011: return TurnLevel::VEER_LEFT; // (0,1,1)
+    case 0b001: return TurnLevel::TURN_LEFT;  // (0,0,1)
+    case 0b101: return TurnLevel::STRAIGHT;    // (1,0,1)
+    case 0b010: return TurnLevel::STRAIGHT;    // (0,1,0)
+    default:    return TurnLevel::SPIN_RIGHT;  // fallback
+  }
 }
 
 static bool autoUpdate() {
@@ -25,12 +46,13 @@ static bool autoUpdate() {
 
   switch (autoState) {
     case AUTO_STAGE1: {
+        
       // Example: drive forward for 2 seconds
-      TurnLevels_runTest();     // blocks; okay because it's explicitly a test state
-      Drive_stopAll();
-      autoState = AUTO_DONE;
-      Serial.println("TurnLevels test complete.");
-      return true;
+    
+      TurnLevel move = readingToMove(L, C, R);    
+      TurnLevels_apply(move);
+    //   Drive_stopAll();
+      return false;
     }
 
     case AUTO_DONE:
