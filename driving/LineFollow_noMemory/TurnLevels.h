@@ -12,7 +12,8 @@ enum class TurnLevel : uint8_t {
   STEER_LEFT,
   TURN_LEFT,
   HOOK_LEFT,
-  SPIN_LEFT
+  SPIN_LEFT,
+  STOP
 };
 
 // Apply a preset using Drive_setLeftRight. speed is 0..127.

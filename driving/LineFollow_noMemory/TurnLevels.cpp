@@ -16,10 +16,11 @@ static constexpr LR kTable[] = {
   {  5,  50},  // TURN_LEFT
   {   -15,  50},  // HOOK_LEFT
   {-40,  40},  // SPIN_LEFT
+  {0,0} //STOP
 };
 
 void TurnLevels_apply(TurnLevel lvl) {
   // speed is unused in this version; remove it from the header too if you want
   const LR p = kTable[(uint8_t)lvl];
-  Drive_setLeftRight((int)p.l, (int)p.r)
+  Drive_setLeftRight((int)p.l, (int)p.r);
 }
